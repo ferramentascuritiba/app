@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Gestão de Preços - Dashboard Local</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Gestão de Preços</h1>
+    <div class="actions">
+      <button id="btnImport">Importar do Feed</button>
+      <a id="btnExport" href="/api/export">Exportar CSV</a>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="field">
+      <label>Feed URL</label>
+      <input id="feedUrl" type="text" placeholder="https://.../produtosGoogle.xml"/>
+    </div>
+    <div class="field">
+      <label>Margem mínima (%)</label>
+      <input id="minMargin" type="number" min="0" max="100" step="0.5" value="15"/>
+    </div>
+    <button id="btnSaveCfg">Salvar Configuração</button>
+  </section>
+
+  <section class="panel">
+    <div class="field grow">
+      <label>Buscar</label>
+      <input id="search" type="text" placeholder="SKU, título, marca..."/>
+    </div>
+    <div class="field">
+      <label>Ação</label>
+      <select id="actionFilter">
+        <option value="">Todas</option>
+        <option>Manter</option>
+        <option>Baixar</option>
+        <option>Subir</option>
+        <option>Aumentar</option>
+      </select>
+    </div>
+    <button id="btnReload">Recarregar</button>
+  </section>
+
+  <section class="table-wrap">
+    <table id="grid">
+      <thead>
+        <tr>
+          <th data-key="id">SKU</th>
+          <th data-key="title">Produto</th>
+          <th data-key="brand">Marca</th>
+          <th data-key="price">Preço (feed)</th>
+          <th>URL</th>
+          <th data-key="cost">Custo</th>
+          <th data-key="competitor_price">Concorrência</th>
+          <th data-key="margin_pct">Margem %</th>
+          <th data-key="action">Ação</th>
+          <th data-key="suggested_price">Sugestão</th>
+          <th>Salvar</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <footer>
+    <p>Local • Node.js + SQLite • Feito para Ferramentas Curitiba</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

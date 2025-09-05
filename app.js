@@ -1,0 +1,103 @@
+let state = { items: [], sortKey: 'title', sortDir: 1 };
+
+async function loadConfig(){
+  const r = await fetch('/api/config'); const j = await r.json();
+  document.querySelector('#feedUrl').value = j.feed_url || '';
+  document.querySelector('#minMargin').value = Math.round((j.min_margin||0.15)*100);
+}
+async function saveConfig(){
+  const feed_url = document.querySelector('#feedUrl').value.trim();
+  const min_margin = Number(document.querySelector('#minMargin').value)/100;
+  await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({feed_url, min_margin})});
+  alert('Configuração salva.');
+}
+
+async function importFeed(){
+  const feed_url = document.querySelector('#feedUrl').value.trim();
+  const r = await fetch('/api/import', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({feed_url})});
+  if(!r.ok){ const t = await r.text(); alert('Erro ao importar: '+t); return; }
+  const j = await r.json();
+  await reload();
+  alert('Importação concluída. Itens processados: '+ j.count);
+}
+
+function fmtMoney(v){
+  if(v===null || v===undefined || isNaN(v)) return '';
+  return 'R$ ' + Number(v).toFixed(2);
+}
+function pct(v){ if(v===null || v===undefined || isNaN(v)) return ''; return (v*100).toFixed(1)+'%'; }
+
+async function reload(){
+  const q = document.querySelector('#search').value.trim();
+  const action = document.querySelector('#actionFilter').value;
+  const r = await fetch(`/api/products?q=${encodeURIComponent(q)}&action=${encodeURIComponent(action)}&limit=1000`);
+  const j = await r.json();
+  state.items = j.items || [];
+  render();
+}
+
+function setSort(key){
+  if(state.sortKey === key){ state.sortDir *= -1; } else { state.sortKey = key; state.sortDir = 1; }
+  render();
+}
+
+function render(){
+  let items = [...state.items];
+  const k = state.sortKey; const d = state.sortDir;
+  items.sort((a,b)=> (a[k]??'') > (b[k]??'') ? d : -d);
+  const tb = document.querySelector('#grid tbody');
+  tb.innerHTML = items.map(row => {
+    const m = row.margin_pct;
+    const action = row.action || '';
+    let tag = `<span class="tag keep">Manter</span>`;
+    if(action==='Baixar') tag = `<span class="tag down">Baixar</span>`;
+    if(action==='Subir') tag = `<span class="tag up">Subir</span>`;
+    if(action==='Aumentar') tag = `<span class="tag raise">Aumentar</span>`;
+    return `<tr data-id="${row.id}">
+      <td>${row.id}</td>
+      <td>${row.title}</td>
+      <td>${row.brand||''}</td>
+      <td class="num">${fmtMoney(row.price)}</td>
+      <td class="url"><a href="${row.url}" target="_blank">abrir</a></td>
+      <td><input class="inp cost" type="number" step="0.01" value="${row.cost??''}"/></td>
+      <td><input class="inp comp" type="number" step="0.01" value="${row.competitor_price??''}"/></td>
+      <td class="num">${m!==null? pct(m):''}</td>
+      <td>${tag}<div class="small">${row.reason||''}</div></td>
+      <td class="num">${fmtMoney(row.suggested_price)}</td>
+      <td><button class="btn-save">Salvar</button></td>
+    </tr>`
+  }).join('');
+
+  // Attach events
+  tb.querySelectorAll('.btn-save').forEach(btn => {
+    btn.addEventListener('click', async (ev) => {
+      const tr = ev.target.closest('tr');
+      const id = tr.dataset.id;
+      const cost = parseFloat(tr.querySelector('.cost').value);
+      const competitor_price = parseFloat(tr.querySelector('.comp').value);
+      const r = await fetch('/api/products/'+encodeURIComponent(id), {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({cost, competitor_price})
+      });
+      if(!r.ok){ alert('Erro ao salvar'); return; }
+      const updated = await r.json();
+      // update local row
+      const idx = state.items.findIndex(x=>x.id===id);
+      if(idx>=0) state.items[idx]=updated;
+      render();
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadConfig();
+  document.querySelectorAll('th[data-key]').forEach(th => {
+    th.addEventListener('click', ()=> setSort(th.dataset.key));
+  });
+  document.querySelector('#btnSaveCfg').addEventListener('click', saveConfig);
+  document.querySelector('#btnReload').addEventListener('click', reload);
+  document.querySelector('#btnImport').addEventListener('click', importFeed);
+  document.querySelector('#search').addEventListener('input', ()=> reload());
+  await reload();
+});
